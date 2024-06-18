@@ -296,7 +296,7 @@ for id in $(echo "$allGroups" | jq -r '.computer_groups[].id'); do
             if [[ $criteriaName == *"$searchTerm"* ]]; then
                 if [[ $involvedGroups != *"$id - $groupName"* ]]; then
                     totalInvolvedGroups=$((totalInvolvedGroups + 1))
-                    involvedGroups+="\n$id - $groupName\n"
+                    involvedGroups+="\n$id - $groupName - $url/smartComputerGroups.html?id=$id&o=r\n"
                 fi
                 involvedGroups+="    ↳ $criteriaName $criteriaSearchType $criteriaValue\n"
             fi
@@ -305,7 +305,7 @@ for id in $(echo "$allGroups" | jq -r '.computer_groups[].id'); do
             if [[ $criteriaValue == *"$searchTerm"* ]]; then
                 if [[ $involvedGroups != *"$id - $groupName"* ]]; then
                     totalInvolvedGroups=$((totalInvolvedGroups + 1))
-                    involvedGroups+="\n$id - $groupName\n"
+                    involvedGroups+="\n$id - $groupName - $url/smartComputerGroups.html?id=$id&o=r\n"
                 fi
                 involvedGroups+="    ↳ $criteriaName $criteriaSearchType $criteriaValue\n"
             fi
