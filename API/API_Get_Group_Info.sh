@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# Script to search groups on Jamf Pro API that includes a specific criteria or value
+# Requires jq to parse JSON data: https://jqlang.github.io/jq/
+
+
 #####
 # Begin Bearer Token retrival
 #####
 
 ## Token Variables
-url="https://smujamf.jamfcloud.com"
+url="https://YOURINSTANCE.jamfcloud.com"
 
 ## Get bearer token
 getPToken() {
@@ -13,7 +17,8 @@ getPToken() {
 
     authToken=$(/usr/bin/curl "${url}/api/v1/auth/token" -s --request POST --header "Authorization: Basic $encodedCredentials")
     # parse authToken for token, omit expiration
-    bToken=$(echo "$authToken" | plutil -extract token raw -)
+    bTokenExtracted=$(/usr/bin/awk -F \" '{ print $4 }' <<<"$authToken" | /usr/bin/xargs)
+    bToken=$(echo $bTokenExtracted | /usr/bin/awk '{print $1}')
     if [ -z "$bToken" ]; then
         echo "Token is invalid"
     else
@@ -39,50 +44,6 @@ invalidateToken() {
 # End Bearer Token retrival
 #####
 
-# Get Jamf username and password via bash
-login_creds() {
-    # Define the options
-    options=("Prod" "Dev")
-
-    # Prompt the user to select an instance
-    PS3="Which instance? "
-    select instance in "${options[@]}"; do
-        case $instance in
-        "Prod")
-            url="https://smujamf.jamfcloud.com"
-            break
-            ;;
-        "Dev")
-            url="https://smujamfdev.jamfcloud.com"
-            break
-            ;;
-        *)
-            echo "Invalid option, please select 1 or 2."
-            ;;
-        esac
-    done
-
-    # Output the selected URL
-    echo "You selected: $url"
-    echo "Please enter your Jamf username:"
-    read uName
-    echo "Please enter your Jamf password:"
-    read -s pWord
-
-    getPToken
-}
-
-login_creds
-
-while true; do
-    if [ -z "$bToken" ]; then
-        echo "--Error. Please check credentials."
-        login_creds
-    else
-        break
-    fi
-done
-
 ########################################
 # Start Print progress bar
 ########################################
@@ -92,6 +53,8 @@ progressCurrTimeUnix=0
 
 # Print a progress bar. First variable is the current count on the loop, second variable is the total number of loops, third variable is the text to display after the progress bar
 printProgressBar() {
+    itemsToGo=$2
+    itemsTotal=$3
     if [ $progressStartTimeUnix -eq 0 ]; then
         progressStartTimeUnix=$(date +%s)
     fi
@@ -108,18 +71,27 @@ printProgressBar() {
 
     # Create an estimated time to finish, based on the seconds that have elapsed divided by the current iteration, then multiplied by the total number of iterations
     if [ $2 -gt 0 ]; then
-        progressEstimatedTime=$((progressElapsedTime * $3 / $2))
-        progressEstimatedTimeMinutes=$((progressEstimatedTime / 60))
-        progressEstimatedTimeSeconds=$((progressEstimatedTime % 60))
-        progressEstimatedTimeValue=$(printf "%02d:%02d" $progressEstimatedTimeMinutes $progressEstimatedTimeSeconds)
+        # if $itemsToGo is the same as $itemsTotal or equal to $itemsTotal - 1, then echo No time estimated
+        if [ $itemsToGo -eq $itemsTotal ] || [ $itemsToGo -eq $((itemsTotal - 1)) ]; then
+            progressEstimatedTimeValue="~~:~~"
+        elif [ $((itemsToGo % 5)) -eq 0 ]; then
+            progressEstimatedTime=$((progressElapsedTime * $3 / $2))
+            progressEstimatedTimeMinutes=$((progressEstimatedTime / 60))
+            progressEstimatedTimeSeconds=$((progressEstimatedTime % 60))
+            progressEstimatedTimeValue=$(printf "%02d:%02d" $progressEstimatedTimeMinutes $progressEstimatedTimeSeconds)
         #echo "Estimated time to finish: $progressEstimatedTimeValue"
+        fi
     fi
 
     # Tell how much time is left
-    progressTimeLeft=$((progressEstimatedTime - progressElapsedTime))
-    progressTimeLeftMinutes=$((progressTimeLeft / 60))
-    progressTimeLeftSeconds=$((progressTimeLeft % 60))
-    progressTimeLeft=$(printf "%02d:%02d" $progressTimeLeftMinutes $progressTimeLeftSeconds)
+    if [ $itemsToGo -eq $itemsTotal ] || [ $itemsToGo -eq $((itemsTotal - 1)) ]; then
+        progressTimeLeft="~~:~~"
+    elif [ $((itemsToGo % 5)) -eq 0 ]; then
+        progressTimeLeft=$((progressEstimatedTime - progressElapsedTime))
+        progressTimeLeftMinutes=$((progressTimeLeft / 60))
+        progressTimeLeftSeconds=$((progressTimeLeft % 60))
+        progressTimeLeft=$(printf "%02d:%02d" $progressTimeLeftMinutes $progressTimeLeftSeconds)
+    fi
     #echo "Time left: $progressTimeLeft"
 
     # The time should always be formatted as 2 digits. So 2 digits for minutes, and 2 digits for seconds. ie. 1 minute and 1 second should be 01:01
@@ -163,21 +135,27 @@ printProgressBar() {
     else
         rotateIter=$((rotateIter + 1))
     fi
-    if [ $rotateIter -gt 4 ]; then
+    if [ $rotateIter -gt 6 ]; then
         rotateIter=1
     fi
     case $rotateIter in
     1)
-        rotateChar="᎐"
+        rotateChar="⠶"
         ;;
     2)
-        rotateChar="᎓"
+        rotateChar="⠧"
         ;;
     3)
-        rotateChar="᎒"
+        rotateChar="⠏"
         ;;
     4)
-        rotateChar="᎓"
+        rotateChar="⠛"
+        ;;
+    5)
+        rotateChar="⠹"
+        ;;
+    6)
+        rotateChar="⠼"
         ;;
     esac
 
@@ -222,7 +200,7 @@ printProgressBar() {
 
         else
             echo -en "\033[u" # restore cursor position
-            printf "\033[K"    # delete till end of line
+            printf "\033[K"   # delete till end of line
             echo -ne "[ $progText | $2/$3 | ${green}$timeText${reset} | ${green}100% ๏ Complete${reset} ]\n"
             progressStartTimeUnix=0
         fi
@@ -234,6 +212,49 @@ printProgressBar() {
 # End Print progress bar
 ########################################
 
+# Get Jamf username and password via bash
+login_creds() {
+    # Define the options
+    options=("Prod" "Dev")
+
+    # Prompt the user to select an instance
+    PS3="Which instance? "
+    select instance in "${options[@]}"; do
+        case $instance in
+        "Prod")
+            url="https://smujamf.jamfcloud.com"
+            break
+            ;;
+        "Dev")
+            url="https://smujamfdev.jamfcloud.com"
+            break
+            ;;
+        *)
+            echo "Invalid option, please select 1 or 2."
+            ;;
+        esac
+    done
+
+    # Output the selected URL
+    echo "You selected: $url"
+    echo "Please enter your Jamf username:"
+    read uName
+    echo "Please enter your Jamf password:"
+    read -s pWord
+
+    getPToken
+}
+
+login_creds
+
+while true; do
+    if [ -z "$bToken" ]; then
+        echo "--Error. Please check credentials."
+        login_creds
+    else
+        break
+    fi
+done
 
 searchChoices=("Criteria" "Value" "Exit")
 

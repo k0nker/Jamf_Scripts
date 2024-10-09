@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# Script to search for a policy in Jamf Pro API that contains a specific search term in the Scripts, Packages, Processes, or Scope sections
+# Requires jq to parse JSON data: https://jqlang.github.io/jq/
+
+
 #####
 # Begin Bearer Token retrival
 #####
 
 ## Token Variables
-url="https://smujamf.jamfcloud.com"
+url="https://YOURINSTANCE.jamfcloud.com"
 
 ## Get bearer token
 getPToken() {
@@ -13,8 +17,8 @@ getPToken() {
 
     authToken=$(/usr/bin/curl "${url}/api/v1/auth/token" -s --request POST --header "Authorization: Basic $encodedCredentials")
     # parse authToken for token, omit expiration
-    #bToken=$(/usr/bin/awk -F \" '{ print $4 }' <<<"$authToken" | /usr/bin/xargs)
-    bToken=$(echo "$authToken" | plutil -extract token raw -)
+    bTokenExtracted=$(/usr/bin/awk -F \" '{ print $4 }' <<<"$authToken" | /usr/bin/xargs)
+    bToken=$(echo $bTokenExtracted | /usr/bin/awk '{print $1}')
     if [ -z "$bToken" ]; then
         echo "Token is invalid"
     else
@@ -120,21 +124,27 @@ printProgressBar() {
     else
         rotateIter=$((rotateIter + 1))
     fi
-    if [ $rotateIter -gt 4 ]; then
+    if [ $rotateIter -gt 6 ]; then
         rotateIter=1
     fi
     case $rotateIter in
     1)
-        rotateChar="᎐"
+        rotateChar="⠶"
         ;;
     2)
-        rotateChar="᎓"
+        rotateChar="⠧"
         ;;
     3)
-        rotateChar="᎒"
+        rotateChar="⠏"
         ;;
     4)
-        rotateChar="᎓"
+        rotateChar="⠛"
+        ;;
+    5)
+        rotateChar="⠹"
+        ;;
+    6)
+        rotateChar="⠼"
         ;;
     esac
 

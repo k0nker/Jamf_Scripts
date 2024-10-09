@@ -1,11 +1,14 @@
 #!/bin/bash
 
+# Script to fetch application usage data from Jamf Pro API for a specified computer group and date range
+# Requires jq to parse JSON data: https://jqlang.github.io/jq/
+
 #####
 # Begin Bearer Token retrival
 #####
 
 ## Token Variables
-url="https://smujamf.jamfcloud.com"
+url="https://YOURINSTANCE.jamfcloud.com"
 
 ## Get bearer token
 getPToken() {
@@ -13,7 +16,8 @@ getPToken() {
 
     authToken=$(/usr/bin/curl "${url}/api/v1/auth/token" -s --request POST --header "Authorization: Basic $encodedCredentials")
     # parse authToken for token, omit expiration
-    bToken=$(echo "$authToken" | plutil -extract token raw -)
+    bTokenExtracted=$(/usr/bin/awk -F \" '{ print $4 }' <<<"$authToken" | /usr/bin/xargs)
+    bToken=$(echo $bTokenExtracted | /usr/bin/awk '{print $1}')
     if [ -z "$bToken" ]; then
         echo "Token is invalid"
     else
@@ -190,5 +194,7 @@ done
 { head -n 1 "$output_file"; tail -n +2 "$output_file" | sort -t',' -k1,1; } > "$output_file.tmp" && mv "$output_file.tmp" "$output_file"
 
 echo "Compilation completed. Output file: $output_file"
+
+invalidateToken
 
 exit 0
