@@ -212,11 +212,11 @@ login_creds() {
     select instance in "${options[@]}"; do
         case $instance in
         "Prod")
-            url="https://smujamf.jamfcloud.com"
+            url="https://YOURINSTANCE.jamfcloud.com"
             break
             ;;
         "Dev")
-            url="https://smujamfdev.jamfcloud.com"
+            url="https://YOURINSTANCEdev.jamfcloud.com"
             break
             ;;
         *)
