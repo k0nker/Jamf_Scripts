@@ -4,7 +4,7 @@
 // @description  Adds Edit links next to Jamf computer groups
 // @author       k0nker
 // @match        *://*.jamfcloud.com/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=tampermonkey.net
+// @icon         https://img.shields.io/badge/Edit-blue
 // @grant        none
 // @namespace    jamf
 // ==/UserScript==
